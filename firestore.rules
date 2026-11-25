@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definition
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidMedicine(data) {
+      return data.keys().hasAll(['userId', 'name', 'dosage', 'schedule', 'startDate', 'endDate', 'embedding', 'createdAt'])
+        && data.keys().size() >= 8 && data.keys().size() <= 10
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 300
+        && data.dosage is string && data.dosage.size() <= 200
+        && data.schedule is list && data.schedule.size() <= 48
+        && data.startDate is string && data.startDate.size() >= 10
+        && data.endDate is string && data.endDate.size() >= 10
+        && data.embedding is list && data.embedding.size() > 0;
+    }
+
+    function isValidMedicineCreate(data) {
+      return isValidMedicine(data) && data.createdAt == request.time;
+    }
+
+    function isValidMedicineUpdate(data) {
+      return isValidMedicine(data) && data.createdAt == resource.data.createdAt;
+    }
+
+    function isValidLog(data) {
+      return data.keys().hasAll(['userId', 'medicineId', 'scheduledTime', 'timestamp', 'status'])
+        && data.keys().size() >= 5 && data.keys().size() <= 7
+        && data.userId == request.auth.uid
+        && isValidId(data.medicineId)
+        && data.scheduledTime is string && data.scheduledTime.size() == 5
+        && data.timestamp == request.time
+        && data.status in ['taken', 'missed'];
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['userId', 'title', 'fileUrl', 'createdAt'])
+        && data.keys().size() >= 4 && data.keys().size() <= 8
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 1000
+        && data.fileUrl is string && data.fileUrl.size() <= 2000
+        && data.createdAt == request.time;
+    }
+
+    // Collection Rules
+    match /medicines/{medicineId} {
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(medicineId) && isValidMedicineCreate(incoming());
+      allow update: if isOwner(existing().userId) && isValidMedicineUpdate(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dosage', 'schedule', 'startDate', 'endDate', 'embedding']);
+      allow delete: if isOwner(existing().userId);
+    }
+
+    match /logs/{logId} {
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming())
+        && exists(/databases/$(database)/documents/medicines/$(request.resource.data.medicineId));
+      allow delete: if isOwner(existing().userId);
+    }
+
+    match /reports/{reportId} {
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(reportId) && isValidReport(incoming());
+      allow update: if isOwner(existing().userId) && isValidReport(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'fileUrl']);
+      allow delete: if isOwner(existing().userId);
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "MediVerify",
+  "description": "Smart medicine reminder with AI-powered tablet verification and medical report vault.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["camera"]
+}

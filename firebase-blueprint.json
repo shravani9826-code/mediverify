@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Medicine": {
+      "title": "Medicine",
+      "description": "Medicine scheduled for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "dosage": { "type": "string" },
+        "schedule": { 
+          "type": "array",
+          "description": "Array of 24h formatted times like ['08:00', '20:00']"
+        },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "embedding": { 
+          "type": "array",
+          "items": { "type": "number" },
+          "description": "AI feature vector for image similarity"
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "dosage", "schedule", "startDate", "endDate", "embedding", "createdAt"]
+    },
+    "Log": {
+      "title": "Log",
+      "description": "Log of medicine intake",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "medicineId": { "type": "string" },
+        "scheduledTime": { "type": "string", "description": "HH:mm format" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["taken", "missed"] }
+      },
+      "required": ["userId", "medicineId", "scheduledTime", "timestamp", "status"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Medical report uploaded by user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "fileUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "medicines/{medicineId}": {
+      "schema": "Medicine",
+      "description": "User medicines"
+    },
+    "logs/{logId}": {
+      "schema": "Log",
+      "description": "Medicine intake history"
+    },
+    "reports/{reportId}": {
+      "schema": "Report",
+      "description": "Medical reports"
+    }
+  }
+}
